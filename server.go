@@ -4,13 +4,63 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"sync"
 )
+
+type TimeHandle struct {
+	data []byte
+	rfc868_epoch time.Time
+
+	mtx sync.RWMutex
+}
+
+func NewTimeHandle() (*TimeHandle, error) {
+	epoch, err := time.Parse("2006-01-02 15:04:05", "1900-01-01 00:00:00")
+	if err != nil {
+		return nil, err
+	}
+
+	return &TimeHandle {
+		make([]byte, 4),
+		epoch,
+		sync.RWMutex{},
+	}, nil
+}
+
+func (th *TimeHandle) update() {
+	th.mtx.Lock()
+
+	to_byte(uint(time.Since(th.rfc868_epoch)/1000000000), &th.data)
+
+	th.mtx.Unlock()
+}
+
+func update_service(th *TimeHandle) {
+	var s1 time.Duration = 1000000000
+	for {
+		th.update()
+		time.Sleep(s1)
+	}
+}
+
+func (th *TimeHandle) send(udpconn *net.UDPConn, caddr *net.UDPAddr) error {
+	th.mtx.RLock()
+
+	_, err := udpconn.WriteToUDP(th.data, caddr)
+	if err != nil {
+		return err
+	}
+
+	th.mtx.RUnlock()
+
+	return nil
+}
 
 func ServeTime(addr string) error {
 	tx := make([]byte, 4)
-	var txs int
+	timehandle, err := NewTimeHandle();
+	go update_service(timehandle)
 
-	tstart, err := time.Parse("2006-01-02 15:04:05", "1900-01-01 00:00:00")
 	if err != nil {
 		return err
 	}
@@ -25,7 +75,7 @@ func ServeTime(addr string) error {
 		return err
 	}
 
-	fps := fpsCounter()
+	//fps := fpsCounter()
 	for {
 		_, caddr, err := udpconn.ReadFromUDP(tx)
 		if err != nil {
@@ -33,20 +83,13 @@ func ServeTime(addr string) error {
 			continue
 		}
 
-		to_byte(uint(time.Since(tstart)/1000000000), &tx)
-
-		txs, err = udpconn.WriteToUDP(tx, caddr)
+		err = timehandle.send(udpconn, caddr)
 		if err != nil {
 			fmt.Println("error: " + err.Error())
 			continue
 		}
 
-		if txs != 4 {
-			fmt.Println("error: just sent", txs, "of 4 byte.")
-			continue
-		}
-
-		fmt.Println("rps", fps())
+		//fmt.Println("rps", fps())
 	}
 
 	err = udpconn.Close()
