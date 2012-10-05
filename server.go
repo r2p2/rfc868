@@ -3,12 +3,12 @@ package rfc868
 import (
 	"fmt"
 	"net"
-	"time"
 	"sync"
+	"time"
 )
 
 type TimeHandle struct {
-	data []byte
+	data         []byte
 	rfc868_epoch time.Time
 
 	mtx sync.RWMutex
@@ -20,7 +20,7 @@ func NewTimeHandle() (*TimeHandle, error) {
 		return nil, err
 	}
 
-	return &TimeHandle {
+	return &TimeHandle{
 		make([]byte, 4),
 		epoch,
 		sync.RWMutex{},
@@ -58,7 +58,7 @@ func (th *TimeHandle) send(udpconn *net.UDPConn, caddr *net.UDPAddr) error {
 
 func ServeTime(addr string) error {
 	tx := make([]byte, 4)
-	timehandle, err := NewTimeHandle();
+	timehandle, err := NewTimeHandle()
 	go update_service(timehandle)
 
 	if err != nil {

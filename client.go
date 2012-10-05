@@ -4,33 +4,60 @@ import (
 	"net"
 )
 
-func RequestTime(addr string) (uint, error) {
-	rx := make([]byte, 4)
+type client struct {
+	addr *net.UDPAddr
+	conn *net.UDPConn
+	data []byte
+}
 
+// Create a new client object and establishes a connection
+// for later usage.
+func NewClient(addr string) (*client, error) {
 	udpaddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	udpconn, err := net.DialUDP("udp", nil, udpaddr)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	_, err = udpconn.Write([]byte{})
+	return &client{
+		udpaddr,
+		udpconn,
+		make([]byte, 4),
+	}, nil
+}
+
+// Uses the established connection to request the current
+// time from the server.
+func (c *client) RequestTime() (uint, error) {
+	_, err := c.conn.Write([]byte{})
 	if err != nil {
 		return 0, err
 	}
 
-	_, err = udpconn.Read(rx)
+	_, err = c.conn.Read(c.data)
 	if err != nil {
 		return 0, err
 	}
 
-	err = udpconn.Close()
+	return to_uint(c.data), nil
+}
+
+// If you don't want to handle the client object
+// use this function.
+func RequestTime(addr string) (uint, error) {
+	c, err := NewClient(addr)
 	if err != nil {
 		return 0, err
 	}
 
-	return to_uint(rx), nil
+	time, err := c.RequestTime()
+	if err != nil {
+		return 0, err
+	}
+
+	return time, nil
 }
