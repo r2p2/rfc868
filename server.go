@@ -43,7 +43,7 @@ func (th *TimeHandle) update() {
 	buf.Reset()
 	// We must send back time encoded as a Big endian 32 bit (signed) int
 	err := binary.Write(buf, binary.BigEndian,
-		int32(time.Since(th.rfc868_epoch)/1000000000))
+		int32(time.Since(th.rfc868_epoch)/time.Second))
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func (th *TimeHandle) update() {
 }
 
 func update_service(th *TimeHandle) {
-	var s1 time.Duration = 1000000000
+	var s1 time.Duration = time.Second
 	for {
 		th.update()
 		time.Sleep(s1)
