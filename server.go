@@ -5,6 +5,8 @@ import (
 	"net"
 	"sync"
 	"time"
+	"bytes"
+	"encoding/binary"
 )
 
 type TimeHandle struct {
@@ -30,7 +32,23 @@ func NewTimeHandle() (*TimeHandle, error) {
 func (th *TimeHandle) update() {
 	th.mtx.Lock()
 
-	to_byte(uint(time.Since(th.rfc868_epoch)/1000000000), &th.data)
+	// In all this, we hope to avoid memory allocation. Allocation
+	// shouldn't happen since we are Write()ing 4 bytes -- the
+	// size of int32 -- to a bytes.Buffer that is initialized from
+	// a byte slice that is already exactly that size, and we call
+	// bytes.Buffer.Reset() before writing. I have checked that
+	// this holds, but a sanity check might be in order (with a
+	// panic() if not passed).
+	buf := bytes.NewBuffer(th.data)
+	buf.Reset()
+	// We must send back time encoded as a Big endian 32 bit (signed) int
+	err := binary.Write(buf, binary.BigEndian,
+		int32(time.Since(th.rfc868_epoch)/1000000000))
+	if err != nil {
+		panic(err)
+	}
+
+	// fmt.Println(buf.Len(), cap(buf.Bytes()))
 
 	th.mtx.Unlock()
 }
