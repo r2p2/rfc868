@@ -43,7 +43,7 @@ func (th *TimeHandle) update() {
 	buf.Reset()
 	// We must send back time encoded as a Big endian 32 bit (signed) int
 	err := binary.Write(buf, binary.BigEndian,
-		int32(time.Since(th.rfc868_epoch)/time.Second))
+		uint32(time.Since(th.rfc868_epoch)/time.Second))
 	if err != nil {
 		panic(err)
 	}
