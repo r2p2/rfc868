@@ -4,7 +4,6 @@ import (
 	"net"
 	"time"
 	"encoding/binary"
-	"fmt"
 )
 
 type client struct {
